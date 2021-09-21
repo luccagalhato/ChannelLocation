@@ -1,10 +1,13 @@
-package main
+package sql
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
 	"net/url"
+
+	maps "roboInsert/googleMaps"
+	"roboInsert/models"
 
 	_ "github.com/denisenkom/go-mssqldb" //bblablalba
 )
@@ -22,6 +25,7 @@ func SetSQLConn(c *SQLStr) {
 	connection = c
 }
 
+//SearchClient ...
 func (s *SQLStr) SearchClient() error {
 	rows, err := s.db.QueryContext(context.Background(), `SELECT LTRIM(RTRIM(NOME_CLIFOR)) AS NOME_CLIFOR,LTRIM(RTRIM(A.ENDERECO)) AS ENDERECO,LTRIM(RTRIM(A.NUMERO)) AS NUMERO,LTRIM(RTRIM(A.BAIRRO)) AS BAIRRO,LTRIM(RTRIM(A.CIDADE)) AS CIDADE,LTRIM(RTRIM(A.UF)) AS UF,LTRIM(RTRIM(A.CEP)) AS CEP,LTRIM(RTRIM(A.PAIS)) AS PAIS,LTRIM(RTRIM(A.CLIFOR)) AS CLIFOR, LTRIM(RTRIM(B.LAT)) AS LAT, LTRIM(RTRIM(B.LONG)) AS LONG, b.DATA_PARA_TRANSFERENCIA
 	FROM (SELECT * FROM LINX_TBFG..CADASTRO_CLI_FOR WHERE INDICA_CLIENTE='1' AND PJ_PF = '1') A 
@@ -44,12 +48,12 @@ func (s *SQLStr) SearchClient() error {
 		return nil
 	}
 	for rows.Next() {
-		client := Street{}
+		client := models.Client{}
 		if err := rows.Scan(&client.Nome, &client.Endereco, &client.Numero, &client.Bairro, &client.Cidade, &client.Uf, &client.Cep, &client.Pais, &client.Clifor, &client.Lat, &client.Long, &client.Data); err != nil {
 			fmt.Println(err)
 			continue
 		}
-		lat, long := requestMapsNewclient(client)
+		lat, long := maps.RequestMapsNewclient(client)
 		if client.Data != nil {
 			connection.UpdateRow(fmt.Sprintf("%f", lat), "01203")
 			connection.UpdateRow(fmt.Sprintf("%f", long), "01204")
@@ -76,6 +80,8 @@ func (s *SQLStr) UpdateRow(value string, condition string) {
 		return
 	}
 }
+
+//MakeSql ...
 func MakeSQL(host, port, username, password string) (*SQLStr, error) {
 
 	s := &SQLStr{}
@@ -85,10 +91,11 @@ func MakeSQL(host, port, username, password string) (*SQLStr, error) {
 		Host:     fmt.Sprintf("%s:%s", host, port),
 		RawQuery: url.Values{}.Encode(),
 	}
-	return s, s.connect()
+	return s, s.Connect()
 }
 
-func (s *SQLStr) connect() error {
+//Connect ...
+func (s *SQLStr) Connect() error {
 	var err error
 	if s.db, err = sql.Open("sqlserver", s.url.String()); err != nil {
 		return err
